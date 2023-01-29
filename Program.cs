@@ -8,6 +8,36 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("api", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name
+                ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                ?? Guid.NewGuid().ToString()
+                ?? "fixed_key",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1),
+            }));
+    options.OnRejected = (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = Application.Json;
+        context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            Error = "Too many requests"
+        });
+
+        return ValueTask.CompletedTask;
+    };
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -39,9 +69,10 @@ app.UseExceptionHandler(errorApp =>
 });
 app.UseStaticFiles();
 
-app.UseRouting();
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllerRoute(
     name: "default",
