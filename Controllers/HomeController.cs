@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using AwesomeWebApp.Models;
+using MyAwesomeWebApp.Models;
 
-namespace AwesomeWebApp.Controllers;
+namespace MyAwesomeWebApp.Controllers;
 
 public class HomeController : Controller
 {
